@@ -1,0 +1,30 @@
+{
+  "name": "ubicame-fleet-management",
+  "version": "1.0.0",
+  "description": "Sistema distribuido de Gestión de Flotas de Transporte en Tiempo Real",
+  "main": "index.js",
+  "scripts": {
+    "install-backend": "cd backend && npm install",
+    "install-frontend": "cd frontend && npm install",
+    "install-gateway": "cd api-gateway && npm install",
+    "install-services": "cd services/auth-service && npm install && cd ../user-service && npm install && cd ../task-service && npm install && cd ../location-service && npm install",
+    "install-all": "npm run install-backend && npm run install-frontend && npm run install-gateway && npm run install-services",
+    "dev-monolith": "concurrently \"npm run dev-backend\" \"npm run start-frontend\"",
+    "dev-backend": "cd backend && npm run dev",
+    "dev-gateway": "cd api-gateway && npm run dev",
+    "dev-auth": "cd services/auth-service && npm run dev",
+    "dev-user": "cd services/user-service && npm run dev", 
+    "dev-task": "cd services/task-service && npm run dev",
+    "dev-location": "cd services/location-service && npm run dev",
+    "start-frontend": "cd frontend && npm start",
+    "dev": "concurrently \"npm run dev-gateway\" \"npm run dev-auth\" \"npm run dev-user\" \"npm run dev-task\" \"npm run dev-location\" \"npm run start-frontend\"",
+    "build": "cd frontend && npm run build",
+    "setup-microservices": "powershell -ExecutionPolicy Bypass -File start-microservices.ps1"
+  },
+  "keywords": ["fleet-management", "transport", "real-time", "node.js", "react"],
+  "author": "Academic Project",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
