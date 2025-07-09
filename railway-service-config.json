@@ -1,0 +1,29 @@
+{
+  "services": {
+    "auth-service": {
+      "rootDirectory": "services/auth-service",
+      "buildCommand": "npm install",
+      "startCommand": "npm start"
+    },
+    "user-service": {
+      "rootDirectory": "services/user-service", 
+      "buildCommand": "npm install",
+      "startCommand": "npm start"
+    },
+    "task-service": {
+      "rootDirectory": "services/task-service",
+      "buildCommand": "npm install", 
+      "startCommand": "npm start"
+    },
+    "location-service": {
+      "rootDirectory": "services/location-service",
+      "buildCommand": "npm install",
+      "startCommand": "npm start"
+    },
+    "api-gateway": {
+      "rootDirectory": "api-gateway",
+      "buildCommand": "npm install",
+      "startCommand": "npm start"
+    }
+  }
+} 
