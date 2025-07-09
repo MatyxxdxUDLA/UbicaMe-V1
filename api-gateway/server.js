@@ -12,14 +12,22 @@ const eventBus = require('./eventBus');
 const webSocketManager = require('./websocketManager');
 
 const app = express();
-const PORT = process.env.GATEWAY_PORT || 3000;
+const PORT = process.env.PORT || process.env.GATEWAY_PORT || 3000;
 
 // Middleware de seguridad
 app.use(helmet());
 
 // CORS - Permitir acceso desde el frontend
+const allowedOrigins = [
+  'http://localhost:4000', 
+  'http://127.0.0.1:4000',
+  'https://ubica-me-v1.vercel.app',
+  'https://ubica-me-v1-ctcjpmsds-matias-robayos-projects.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: ['http://localhost:4000', 'http://127.0.0.1:4000'],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']

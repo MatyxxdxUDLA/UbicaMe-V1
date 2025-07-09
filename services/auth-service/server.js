@@ -11,7 +11,7 @@ const eventBus = require('../../shared/eventBus');
 const authRoutes = require('../../backend/routes/auth');
 
 const app = express();
-const PORT = process.env.AUTH_SERVICE_PORT || 3001;
+const PORT = process.env.PORT || process.env.AUTH_SERVICE_PORT || 3001;
 
 // Middleware de seguridad
 app.use(helmet());

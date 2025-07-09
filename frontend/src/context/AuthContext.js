@@ -3,75 +3,105 @@ import api from '../services/api';
 
 const AuthContext = createContext();
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+// Modo demo - usuarios de prueba
+const DEMO_USERS = {
+  'admin@ubicame.com': {
+    email: 'admin@ubicame.com',
+    password: 'admin123',
+    role: 'admin',
+    name: 'Administrador Demo'
+  },
+  'driver@ubicame.com': {
+    email: 'driver@ubicame.com', 
+    password: 'driver123',
+    role: 'driver',
+    name: 'Conductor Demo'
   }
-  return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  
+  // Verificar si estamos en modo demo
+  const isDemoMode = process.env.REACT_APP_DEMO_MODE === 'true' || 
+                     !process.env.REACT_APP_API_URL || 
+                     process.env.REACT_APP_API_URL.includes('localhost');
 
   useEffect(() => {
-    const verifyToken = async () => {
-      if (token) {
-        try {
-          const response = await api.get('/auth/verify');
-          setUser(response.data.user);
-        } catch (error) {
-          console.error('Token inválido:', error);
-          localStorage.removeItem('token');
-          setToken(null);
-        }
-      }
-      setLoading(false);
-    };
-
-    verifyToken();
-  }, [token]);
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      setUser(JSON.parse(userData));
+    }
+    setLoading(false);
+  }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token: newToken, user: userData } = response.data;
-      
-      localStorage.setItem('token', newToken);
-      setToken(newToken);
-      setUser(userData);
-      
-      return { success: true, user: userData };
+      if (isDemoMode) {
+        // Modo demo - validación local
+        const demoUser = DEMO_USERS[email];
+        if (demoUser && demoUser.password === password) {
+          const userData = {
+            email: demoUser.email,
+            role: demoUser.role,
+            name: demoUser.name
+          };
+          
+          localStorage.setItem('token', 'demo-token');
+          localStorage.setItem('user', JSON.stringify(userData));
+          setUser(userData);
+          
+          return { success: true, user: userData };
+        } else {
+          return { 
+            success: false, 
+            message: 'Credenciales inválidas. Prueba: admin@ubicame.com/admin123 o driver@ubicame.com/driver123' 
+          };
+        }
+      } else {
+        // Modo normal - API real
+        const response = await api.post('/auth/login', { email, password });
+        
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          setUser(response.data.user);
+          return { success: true, user: response.data.user };
+        }
+      }
     } catch (error) {
+      console.error('Error en login:', error);
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Error de conexión' 
+        message: isDemoMode ? 'Error en modo demo' : error.response?.data?.message || 'Error de conexión' 
       };
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    setToken(null);
+    localStorage.removeItem('user');
     setUser(null);
   };
 
   const value = {
     user,
-    token,
-    loading,
     login,
     logout,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isDriver: user?.role === 'driver'
+    loading,
+    isDemoMode
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }; 

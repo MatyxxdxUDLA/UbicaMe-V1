@@ -2,16 +2,14 @@ import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { TruckIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { TruckIcon, EyeIcon, EyeSlashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated, user } = useAuth();
-
-  // El useEffect fue removido porque la redirección se maneja más abajo
+  const { login, user, isDemoMode } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,10 +19,10 @@ const Login = () => {
       const result = await login(email, password);
       
       if (result.success) {
-        toast.success(`¡Bienvenido ${result.user.name}!`);
-        // La redirección se maneja automáticamente por el useEffect
+        toast.success(`¡Bienvenido ${result.user.name || result.user.email}!`);
+        // La redirección se maneja automáticamente por el AuthProvider
       } else {
-        toast.error(result.error);
+        toast.error(result.message || result.error || 'Error al iniciar sesión');
       }
     } catch (error) {
       toast.error('Error inesperado al iniciar sesión');
@@ -38,13 +36,13 @@ const Login = () => {
       setEmail('admin@ubicame.com');
       setPassword('admin123');
     } else {
-      setEmail('conductor1@ubicame.com');
-      setPassword('conductor123');
+      setEmail('driver@ubicame.com');
+      setPassword('driver123');
     }
   };
 
   // Si ya está autenticado, redirigir
-  if (isAuthenticated && user) {
+  if (user) {
     const redirectPath = user.role === 'admin' ? '/admin' : '/driver';
     return <Navigate to={redirectPath} replace />;
   }
@@ -52,6 +50,21 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        {/* Banner de modo demo */}
+        {isDemoMode && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-2" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Modo Demo</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Aplicación funcionando sin backend. Usa las credenciales de prueba.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
             <TruckIcon className="h-10 w-10 text-white" />
@@ -134,7 +147,9 @@ const Login = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Cuentas de prueba</span>
+                <span className="px-2 bg-white text-gray-500">
+                  {isDemoMode ? 'Credenciales de demo' : 'Cuentas de prueba'}
+                </span>
               </div>
             </div>
 
@@ -154,11 +169,21 @@ const Login = () => {
                 Conductor
               </button>
             </div>
+            
+            {isDemoMode && (
+              <div className="mt-3 text-center text-xs text-gray-500">
+                <p>Admin: admin@ubicame.com / admin123</p>
+                <p>Driver: driver@ubicame.com / driver123</p>
+              </div>
+            )}
           </div>
         </form>
 
         <div className="text-center text-xs text-gray-500">
           <p>Sistema académico de gestión de flotas de transporte</p>
+          {isDemoMode && (
+            <p className="mt-1 text-yellow-600">🚧 Funcionando en modo demo sin backend</p>
+          )}
         </div>
       </div>
     </div>
