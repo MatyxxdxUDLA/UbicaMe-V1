@@ -4,7 +4,12 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
+const http = require('http');
 require('dotenv').config();
+
+// Importar sistema de eventos y WebSockets
+const eventBus = require('./eventBus');
+const webSocketManager = require('./websocketManager');
 
 const app = express();
 const PORT = process.env.GATEWAY_PORT || 3000;
@@ -220,12 +225,97 @@ app.use((error, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🌐 API Gateway running on port ${PORT}`);
-  console.log(`📊 Gateway available at http://localhost:${PORT}`);
-  console.log(`🏥 Health check at http://localhost:${PORT}/health`);
-  console.log('🔗 Connected services:');
-  Object.entries(SERVICES).forEach(([name, url]) => {
-    console.log(`   ${name}: ${url}`);
+// Crear servidor HTTP para WebSockets
+const server = http.createServer(app);
+
+// Inicializar WebSocket Manager
+webSocketManager.initialize(server);
+
+// Función para inicializar el sistema distribuido
+async function startDistributedSystem() {
+  try {
+    // Conectar al EventBus (RabbitMQ)
+    const rabbitConnected = await eventBus.connect();
+    
+    if (rabbitConnected) {
+      // Configurar event handlers para el gateway
+      setupEventHandlers();
+    }
+    
+    // Iniciar servidor
+    server.listen(PORT, () => {
+      console.log(`🌐 API Gateway running on port ${PORT}`);
+      console.log(`📊 Gateway available at http://localhost:${PORT}`);
+      console.log(`🔌 WebSocket server available at ws://localhost:${PORT}`);
+      console.log(`🏥 Health check at http://localhost:${PORT}/health`);
+      console.log('🔗 Connected services:');
+      Object.entries(SERVICES).forEach(([name, url]) => {
+        console.log(`   ${name}: ${url}`);
+      });
+      
+      if (rabbitConnected) {
+        console.log('🐰 RabbitMQ EventBus conectado');
+      } else {
+        console.log('⚠️  Ejecutándose sin RabbitMQ (modo degradado)');
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error iniciando sistema distribuido:', error);
+    process.exit(1);
+  }
+}
+
+// Configurar manejadores de eventos del gateway
+function setupEventHandlers() {
+  // Escuchar eventos de notificaciones para enviar via WebSocket
+  eventBus.subscribeToNotifications(async (event) => {
+    console.log('📨 Evento de notificación recibido:', event.type);
+    
+    switch (event.type) {
+      case 'notification.user_update':
+        webSocketManager.sendUserUpdate(event.data);
+        break;
+      case 'notification.task_update':
+        webSocketManager.sendTaskUpdate(event.data);
+        break;
+      case 'notification.location_update':
+        webSocketManager.broadcastLocationUpdate(event.data.driverId, event.data);
+        break;
+      case 'notification.broadcast':
+        webSocketManager.broadcastToAll('system_notification', event.data);
+        break;
+      default:
+        console.log('📨 Tipo de notificación no manejado:', event.type);
+    }
   });
-}); 
+  
+  // Escuchar todos los eventos para logging y analytics
+  eventBus.subscribeToEvents('gateway_analytics', eventBus.exchanges.USERS, ['user.*'], async (event) => {
+    console.log('📊 Analytics - Evento de usuario:', event.type, event.data);
+  });
+  
+  eventBus.subscribeToEvents('gateway_analytics', eventBus.exchanges.TASKS, ['task.*'], async (event) => {
+    console.log('📊 Analytics - Evento de tarea:', event.type, event.data);
+  });
+  
+  eventBus.subscribeToEvents('gateway_analytics', eventBus.exchanges.LOCATIONS, ['location.*'], async (event) => {
+    console.log('📊 Analytics - Evento de ubicación:', event.type, event.data);
+  });
+}
+
+// Manejar cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Cerrando API Gateway...');
+  await eventBus.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Cerrando API Gateway...');
+  await eventBus.close();
+  process.exit(0);
+});
+
+// Iniciar el sistema
+startDistributedSystem(); 

@@ -19,12 +19,36 @@ router.post('/', authenticateToken, requireRole(['driver']), async (req, res) =>
     }
 
     // Insertar nueva ubicación
-    await database.run(
+    const result = await database.run(
       'INSERT INTO locations (driver_id, latitude, longitude) VALUES (?, ?, ?)',
       [req.user.id, latitude, longitude]
     );
 
-    res.json({ message: 'Ubicación actualizada exitosamente' });
+    const newLocation = {
+      id: result.id,
+      driver_id: req.user.id,
+      latitude,
+      longitude,
+      timestamp: new Date().toISOString()
+    };
+
+    // Publicar evento de ubicación actualizada
+    if (global.eventBus) {
+      await global.eventBus.publishLocationEvent('updated', newLocation);
+      
+      // También enviar notificación para tiempo real
+      await global.eventBus.publishNotification('location_update', {
+        driverId: req.user.id,
+        latitude,
+        longitude,
+        timestamp: newLocation.timestamp
+      });
+    }
+
+    res.json({ 
+      message: 'Ubicación actualizada exitosamente',
+      location: newLocation
+    });
 
   } catch (error) {
     console.error('Error actualizando ubicación:', error);

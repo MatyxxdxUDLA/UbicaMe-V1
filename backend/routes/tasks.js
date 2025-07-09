@@ -118,6 +118,29 @@ router.post('/', authenticateToken, requireRole(['admin']), async (req, res) => 
       [result.id]
     );
 
+    // Publicar eventos de tarea creada
+    if (global.eventBus) {
+      await global.eventBus.publishTaskEvent('created', task);
+      
+      // Si se asignó a un conductor, publicar evento de asignación
+      if (driver_id) {
+        await global.eventBus.publishTaskEvent('assigned', task);
+        
+        // Enviar notificación al conductor
+        await global.eventBus.publishNotification('task_assigned', {
+          message: `Nueva tarea asignada: ${title}`,
+          task: task,
+          driverId: driver_id
+        });
+      }
+      
+      // Notificación general de tarea creada
+      await global.eventBus.publishNotification('task_created', {
+        message: `Nueva tarea creada: ${title}`,
+        task: task
+      });
+    }
+
     res.status(201).json({
       message: 'Tarea creada exitosamente',
       task
@@ -270,6 +293,40 @@ router.put('/:id', authenticateToken, async (req, res) => {
       WHERE t.id = ?`,
       [id]
     );
+
+    // Publicar eventos de tarea actualizada
+    if (global.eventBus) {
+      await global.eventBus.publishTaskEvent('updated', updatedTask);
+      
+      // Si el estado cambió a completado
+      if (status === 'completed') {
+        await global.eventBus.publishTaskEvent('completed', updatedTask);
+        
+        // Notificación de tarea completada
+        await global.eventBus.publishNotification('task_completed', {
+          message: `Tarea completada: ${updatedTask.title}`,
+          task: updatedTask
+        });
+      }
+      
+      // Si se reasignó a otro conductor
+      if (driver_id && driver_id !== existingTask.driver_id) {
+        await global.eventBus.publishTaskEvent('reassigned', updatedTask);
+        
+        // Notificación al nuevo conductor
+        await global.eventBus.publishNotification('task_assigned', {
+          message: `Tarea reasignada: ${updatedTask.title}`,
+          task: updatedTask,
+          driverId: driver_id
+        });
+      }
+      
+      // Notificación general de actualización
+      await global.eventBus.publishNotification('task_update', {
+        message: `Tarea actualizada: ${updatedTask.title}`,
+        task: updatedTask
+      });
+    }
 
     res.json({
       message: 'Tarea actualizada exitosamente',

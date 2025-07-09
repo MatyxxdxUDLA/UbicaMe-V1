@@ -7,6 +7,9 @@ require('dotenv').config();
 // Importar configuración de base de datos
 const database = require('../../backend/config/database');
 
+// Importar sistema de eventos
+const eventBus = require('../../shared/eventBus');
+
 // Importar rutas del backend original
 const taskRoutes = require('../../backend/routes/tasks');
 
@@ -76,9 +79,21 @@ app.use('*', (req, res) => {
 // Inicializar base de datos y servidor
 async function startServer() {
   try {
+    // Establecer nombre del servicio para eventos
+    process.env.SERVICE_NAME = 'task-service';
+    
     // Conectar a la base de datos
     await database.connect();
     console.log('✅ Task Service conectado a la base de datos SQLite');
+    
+    // Conectar al EventBus
+    const eventConnected = await eventBus.connect();
+    
+    if (eventConnected) {
+      // Configurar event handlers
+      setupEventHandlers();
+      console.log('🐰 Task Service conectado al EventBus');
+    }
     
     app.listen(PORT, () => {
       console.log(`📋 Task Service running on port ${PORT}`);
@@ -90,5 +105,52 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// Configurar manejadores de eventos
+function setupEventHandlers() {
+  // Escuchar eventos de tareas
+  eventBus.subscribeToTaskEvents(async (event) => {
+    console.log('📥 Evento de tarea recibido:', event.type);
+    
+    switch (event.type) {
+      case 'task.created':
+        console.log('📋 Tarea creada:', event.data.title);
+        break;
+      case 'task.assigned':
+        console.log('📋 Tarea asignada:', event.data.title, 'a conductor', event.data.driver_id);
+        break;
+      case 'task.updated':
+        console.log('📋 Tarea actualizada:', event.data.title);
+        break;
+      case 'task.completed':
+        console.log('📋 Tarea completada:', event.data.title);
+        break;
+    }
+  });
+  
+  // Escuchar eventos de ubicación para tareas relacionadas
+  eventBus.subscribeToLocationEvents(async (event) => {
+    if (event.type === 'location.updated') {
+      console.log('📍 Ubicación actualizada para conductor:', event.data.driver_id);
+      // Aquí podrías actualizar el estado de tareas basado en ubicación
+    }
+  });
+}
+
+// Hacer el eventBus disponible globalmente para las rutas
+global.eventBus = eventBus;
+
+// Manejar cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Cerrando Task Service...');
+  await eventBus.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Cerrando Task Service...');
+  await eventBus.close();
+  process.exit(0);
+});
 
 startServer(); 

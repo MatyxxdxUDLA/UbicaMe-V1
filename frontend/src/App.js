@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider } from './context/AuthContext';
+import { WebSocketProvider } from './context/WebSocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
@@ -13,7 +14,8 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
+        <WebSocketProvider>
+          <div className="min-h-screen bg-gray-50">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route 
@@ -46,7 +48,8 @@ function App() {
             draggable
             pauseOnHover
           />
-        </div>
+          </div>
+        </WebSocketProvider>
       </AuthProvider>
     </Router>
   );

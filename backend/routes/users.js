@@ -66,9 +66,22 @@ router.post('/', authenticateToken, requireRole(['admin']), async (req, res) => 
       [email, hashedPassword, name, role]
     );
 
+    const newUser = { id: result.id, email, name, role };
+    
+    // Publicar evento de usuario creado
+    if (global.eventBus) {
+      await global.eventBus.publishUserEvent('created', newUser);
+      
+      // También enviar notificación
+      await global.eventBus.publishNotification('user_created', {
+        message: `Nuevo usuario creado: ${name}`,
+        user: newUser
+      });
+    }
+
     res.status(201).json({
       message: 'Usuario creado exitosamente',
-      user: { id: result.id, email, name, role }
+      user: newUser
     });
 
   } catch (error) {
@@ -136,6 +149,17 @@ router.put('/:id', authenticateToken, requireRole(['admin']), async (req, res) =
       [id]
     );
 
+    // Publicar evento de usuario actualizado
+    if (global.eventBus) {
+      await global.eventBus.publishUserEvent('updated', updatedUser);
+      
+      // También enviar notificación
+      await global.eventBus.publishNotification('user_update', {
+        message: `Usuario actualizado: ${updatedUser.name}`,
+        user: updatedUser
+      });
+    }
+
     res.json({
       message: 'Usuario actualizado exitosamente',
       user: updatedUser
@@ -169,6 +193,20 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
 
     // Eliminar usuario
     await database.run('DELETE FROM users WHERE id = ?', [id]);
+
+    // Publicar evento de usuario eliminado
+    if (global.eventBus) {
+      await global.eventBus.publishUserEvent('deleted', {
+        id: parseInt(id),
+        email: existingUser.email || 'unknown'
+      });
+      
+      // También enviar notificación
+      await global.eventBus.publishNotification('user_deleted', {
+        message: `Usuario eliminado: ID ${id}`,
+        userId: parseInt(id)
+      });
+    }
 
     res.json({ message: 'Usuario eliminado exitosamente' });
 

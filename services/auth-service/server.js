@@ -4,6 +4,9 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// Importar sistema de eventos
+const eventBus = require('../../shared/eventBus');
+
 // Importar rutas del backend original
 const authRoutes = require('../../backend/routes/auth');
 
@@ -70,8 +73,66 @@ app.use('*', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🔐 Auth Service running on port ${PORT}`);
-  console.log(`📊 Service available at http://localhost:${PORT}`);
-  console.log(`🏥 Health check at http://localhost:${PORT}/health`);
-}); 
+// Función para inicializar el auth service
+async function startServer() {
+  try {
+    // Establecer nombre del servicio para eventos
+    process.env.SERVICE_NAME = 'auth-service';
+    
+    // Conectar al EventBus
+    const eventConnected = await eventBus.connect();
+    
+    if (eventConnected) {
+      // Configurar event handlers
+      setupEventHandlers();
+      console.log('🐰 Auth Service conectado al EventBus');
+    }
+    
+    app.listen(PORT, () => {
+      console.log(`🔐 Auth Service running on port ${PORT}`);
+      console.log(`📊 Service available at http://localhost:${PORT}`);
+      console.log(`🏥 Health check at http://localhost:${PORT}/health`);
+    });
+  } catch (error) {
+    console.error('❌ Error iniciando Auth Service:', error);
+    process.exit(1);
+  }
+}
+
+// Configurar manejadores de eventos
+function setupEventHandlers() {
+  // Escuchar eventos de autenticación
+  eventBus.subscribeToAuthEvents(async (event) => {
+    console.log('📥 Evento de autenticación recibido:', event.type);
+    
+    switch (event.type) {
+      case 'auth.login':
+        console.log('🔐 Usuario autenticado:', event.data.email);
+        break;
+      case 'auth.logout':
+        console.log('🔐 Usuario desconectado:', event.data.email);
+        break;
+      case 'auth.failed_login':
+        console.log('🔐 Intento de login fallido:', event.data.email);
+        break;
+    }
+  });
+}
+
+// Hacer el eventBus disponible globalmente para las rutas
+global.eventBus = eventBus;
+
+// Manejar cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Cerrando Auth Service...');
+  await eventBus.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Cerrando Auth Service...');
+  await eventBus.close();
+  process.exit(0);
+});
+
+startServer(); 

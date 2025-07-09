@@ -13,7 +13,7 @@
     "dev-backend": "cd backend && npm run dev",
     "dev-gateway": "cd api-gateway && npm run dev",
     "dev-auth": "cd services/auth-service && npm run dev",
-    "dev-user": "cd services/user-service && npm run dev", 
+    "dev-user": "cd services/user-service && npm run dev",
     "dev-task": "cd services/task-service && npm run dev",
     "dev-location": "cd services/location-service && npm run dev",
     "start-frontend": "cd frontend && npm start",
@@ -21,10 +21,23 @@
     "build": "cd frontend && npm run build",
     "setup-microservices": "powershell -ExecutionPolicy Bypass -File start-microservices.ps1"
   },
-  "keywords": ["fleet-management", "transport", "real-time", "node.js", "react"],
+  "keywords": [
+    "fleet-management",
+    "transport",
+    "real-time",
+    "node.js",
+    "react"
+  ],
   "author": "Academic Project",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.8",
+    "jsonwebtoken": "^9.0.2",
+    "react-toastify": "^11.0.5",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0"
   }
-} 
+}

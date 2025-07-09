@@ -1,0 +1,10 @@
+{
+  "name": "ubicame-shared",
+  "version": "1.0.0",
+  "description": "Módulos compartidos para UbicaMe",
+  "main": "eventBus.js",
+  "dependencies": {
+    "amqplib": "^0.10.8",
+    "uuid": "^11.1.0"
+  }
+} 

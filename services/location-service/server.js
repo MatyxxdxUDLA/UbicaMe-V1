@@ -7,6 +7,9 @@ require('dotenv').config();
 // Importar configuración de base de datos
 const database = require('../../backend/config/database');
 
+// Importar sistema de eventos
+const eventBus = require('../../shared/eventBus');
+
 // Importar rutas del backend original
 const locationRoutes = require('../../backend/routes/locations');
 
@@ -76,9 +79,21 @@ app.use('*', (req, res) => {
 // Inicializar base de datos y servidor
 async function startServer() {
   try {
+    // Establecer nombre del servicio para eventos
+    process.env.SERVICE_NAME = 'location-service';
+    
     // Conectar a la base de datos
     await database.connect();
     console.log('✅ Location Service conectado a la base de datos SQLite');
+    
+    // Conectar al EventBus
+    const eventConnected = await eventBus.connect();
+    
+    if (eventConnected) {
+      // Configurar event handlers
+      setupEventHandlers();
+      console.log('🐰 Location Service conectado al EventBus');
+    }
     
     app.listen(PORT, () => {
       console.log(`📍 Location Service running on port ${PORT}`);
@@ -90,5 +105,50 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// Configurar manejadores de eventos
+function setupEventHandlers() {
+  // Escuchar eventos de ubicación
+  eventBus.subscribeToLocationEvents(async (event) => {
+    console.log('📥 Evento de ubicación recibido:', event.type);
+    
+    switch (event.type) {
+      case 'location.updated':
+        console.log('📍 Ubicación actualizada para conductor:', event.data.driver_id);
+        // Aquí podrías procesar la ubicación, calcular rutas, etc.
+        break;
+      case 'location.geofence_entered':
+        console.log('📍 Conductor entró en geofence:', event.data);
+        break;
+      case 'location.geofence_exited':
+        console.log('📍 Conductor salió de geofence:', event.data);
+        break;
+    }
+  });
+  
+  // Escuchar eventos de tareas para tracking relacionado
+  eventBus.subscribeToTaskEvents(async (event) => {
+    if (event.type === 'task.assigned' && event.data.driver_id) {
+      console.log('📋 Tarea asignada, iniciando tracking para conductor:', event.data.driver_id);
+      // Aquí podrías activar tracking específico para la tarea
+    }
+  });
+}
+
+// Hacer el eventBus disponible globalmente para las rutas
+global.eventBus = eventBus;
+
+// Manejar cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Cerrando Location Service...');
+  await eventBus.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Cerrando Location Service...');
+  await eventBus.close();
+  process.exit(0);
+});
 
 startServer(); 

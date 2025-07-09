@@ -81,6 +81,14 @@ router.post('/login', async (req, res) => {
     );
 
     if (!user) {
+      // Publicar evento de login fallido
+      if (global.eventBus) {
+        await global.eventBus.publishAuthEvent('failed_login', {
+          email,
+          reason: 'user_not_found',
+          timestamp: new Date().toISOString()
+        });
+      }
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
@@ -88,6 +96,14 @@ router.post('/login', async (req, res) => {
     const isValidPassword = await bcrypt.compare(password, user.password);
     
     if (!isValidPassword) {
+      // Publicar evento de login fallido
+      if (global.eventBus) {
+        await global.eventBus.publishAuthEvent('failed_login', {
+          email,
+          reason: 'invalid_password',
+          timestamp: new Date().toISOString()
+        });
+      }
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
@@ -103,15 +119,28 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    const userResponse = { 
+      id: user.id, 
+      email: user.email, 
+      name: user.name, 
+      role: user.role 
+    };
+
+    // Publicar evento de login exitoso
+    if (global.eventBus) {
+      await global.eventBus.publishAuthEvent('login', {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({
       message: 'Login exitoso',
       token,
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
-        role: user.role 
-      }
+      user: userResponse
     });
 
   } catch (error) {
